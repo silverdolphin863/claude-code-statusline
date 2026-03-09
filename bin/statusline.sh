@@ -98,31 +98,54 @@ process.stdin.on("end", () => {
         const cacheFile = path.join(home, ".claude", "usage-cache.json");
         let usageData = null;
 
-        // Read cache
+        // Read cache (use stale data while revalidating)
+        let cacheAge = Infinity;
         try {
           const stat = fs.statSync(cacheFile);
-          const cacheAge = (Date.now() - stat.mtimeMs) / 1000;
-          if (cacheAge < cfg.cacheTtl) {
-            usageData = JSON.parse(fs.readFileSync(cacheFile, "utf8"));
-          }
+          cacheAge = (Date.now() - stat.mtimeMs) / 1000;
+          usageData = JSON.parse(fs.readFileSync(cacheFile, "utf8"));
         } catch(e) {}
 
-        // Fetch fresh if no cache
-        if (!usageData) {
-          const credsPath = path.join(home, ".claude", ".credentials.json");
-          const creds = JSON.parse(fs.readFileSync(credsPath, "utf8"));
-          const token = creds.claudeAiOauth?.accessToken;
-          if (token) {
-            const result = execSync(
-              "curl -s -H \"Authorization: Bearer " + token + "\" " +
-              "-H \"anthropic-beta: oauth-2025-04-20\" " +
-              "\"https://api.anthropic.com/api/oauth/usage\"",
-              { timeout: 5000, encoding: "utf8" }
-            );
-            const parsed = JSON.parse(result);
-            if (parsed && !parsed.error) {
-              usageData = parsed;
-              fs.writeFileSync(cacheFile, result);
+        // Only fetch if cache is expired AND no other fetch is in progress
+        if (cacheAge >= cfg.cacheTtl) {
+          const lockFile = cacheFile + ".lock";
+          let shouldFetch = false;
+          try {
+            // Atomic lock: create exclusively, fails if exists
+            fs.writeFileSync(lockFile, String(Date.now()), { flag: "wx" });
+            shouldFetch = true;
+          } catch(e) {
+            // Lock exists — check if stale (>30s means previous fetch crashed)
+            try {
+              const lockAge = (Date.now() - fs.statSync(lockFile).mtimeMs) / 1000;
+              if (lockAge > 30) {
+                fs.unlinkSync(lockFile);
+                fs.writeFileSync(lockFile, String(Date.now()), { flag: "wx" });
+                shouldFetch = true;
+              }
+            } catch(e2) {}
+          }
+
+          if (shouldFetch) {
+            try {
+              const credsPath = path.join(home, ".claude", ".credentials.json");
+              const creds = JSON.parse(fs.readFileSync(credsPath, "utf8"));
+              const token = creds.claudeAiOauth?.accessToken;
+              if (token) {
+                const result = execSync(
+                  "curl -s -H \"Authorization: Bearer " + token + "\" " +
+                  "-H \"anthropic-beta: oauth-2025-04-20\" " +
+                  "\"https://api.anthropic.com/api/oauth/usage\"",
+                  { timeout: 5000, encoding: "utf8" }
+                );
+                const parsed = JSON.parse(result);
+                if (parsed && !parsed.error) {
+                  usageData = parsed;
+                  fs.writeFileSync(cacheFile, result);
+                }
+              }
+            } finally {
+              try { fs.unlinkSync(lockFile); } catch(e) {}
             }
           }
         }
