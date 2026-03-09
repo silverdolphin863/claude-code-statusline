@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="84" viewBox="0 0 940 84">
+  <defs>
+    <style>
+      .bg { fill: #1a1b26; }
+      .purple { fill: #a78bfa; font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace; font-size: 15px; }
+      .blue { fill: #60a5fa; font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace; font-size: 15px; }
+      .gray { fill: #6b7280; font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace; font-size: 15px; }
+      .yellow { fill: #fbbf24; font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace; font-size: 15px; }
+      .green { fill: #34d399; font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace; font-size: 15px; }
+      .orange { fill: #f97316; font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace; font-size: 15px; }
+      .red { fill: #ef4444; font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace; font-size: 15px; }
+      .dim { fill: #4b5563; font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace; font-size: 15px; }
+      .bar-empty { fill: #374151; }
+      .bar-green { fill: #34d399; }
+      .bar-orange { fill: #f97316; }
+    </style>
+  </defs>
+  <!-- Background -->
+  <rect class="bg" width="940" height="84" rx="8"/>
+
+  <!-- Model -->
+  <text class="purple" x="18" y="47">Opus 4.6</text>
+  <text class="dim" x="96" y="47">│</text>
+
+  <!-- Project -->
+  <text class="blue" x="108" y="47">MyProject</text>
+  <text class="dim" x="194" y="47">│</text>
+
+  <!-- Duration -->
+  <text class="gray" x="206" y="47">12m</text>
+  <text class="dim" x="237" y="47">│</text>
+
+  <!-- Cost -->
+  <text class="yellow" x="249" y="47">$0.50</text>
+  <text class="dim" x="299" y="47">│</text>
+
+  <!-- Context icon + percentage -->
+  <text class="yellow" x="311" y="47">✍️</text>
+  <text class="green" x="335" y="47">25%</text>
+  <text class="dim" x="366" y="47">│</text>
+
+  <!-- Lines changed -->
+  <text class="green" x="378" y="47">+142</text>
+  <text class="red" x="416" y="47">/-38</text>
+  <text class="dim" x="453" y="47">│</text>
+
+  <!-- 5-hour bar -->
+  <text class="gray" x="465" y="47">5-hour</text>
+  <!-- Bar: 1 filled (green) + 9 empty -->
+  <rect class="bar-green" x="526" y="37" width="9" height="13" rx="1"/>
+  <rect class="bar-empty" x="537" y="37" width="9" height="13" rx="1"/>
+  <rect class="bar-empty" x="548" y="37" width="9" height="13" rx="1"/>
+  <rect class="bar-empty" x="559" y="37" width="9" height="13" rx="1"/>
+  <rect class="bar-empty" x="570" y="37" width="9" height="13" rx="1"/>
+  <rect class="bar-empty" x="581" y="37" width="9" height="13" rx="1"/>
+  <rect class="bar-empty" x="592" y="37" width="9" height="13" rx="1"/>
+  <rect class="bar-empty" x="603" y="37" width="9" height="13" rx="1"/>
+  <rect class="bar-empty" x="614" y="37" width="9" height="13" rx="1"/>
+  <rect class="bar-empty" x="625" y="37" width="9" height="13" rx="1"/>
+  <text class="gray" x="641" y="47">9%</text>
+  <text class="dim" x="664" y="47">│</text>
+
+  <!-- Weekly bar -->
+  <text class="gray" x="676" y="47">weekly</text>
+  <!-- Bar: 5 filled (orange) + 5 empty -->
+  <rect class="bar-orange" x="737" y="37" width="9" height="13" rx="1"/>
+  <rect class="bar-orange" x="748" y="37" width="9" height="13" rx="1"/>
+  <rect class="bar-orange" x="759" y="37" width="9" height="13" rx="1"/>
+  <rect class="bar-orange" x="770" y="37" width="9" height="13" rx="1"/>
+  <rect class="bar-orange" x="781" y="37" width="9" height="13" rx="1"/>
+  <rect class="bar-empty" x="792" y="37" width="9" height="13" rx="1"/>
+  <rect class="bar-empty" x="803" y="37" width="9" height="13" rx="1"/>
+  <rect class="bar-empty" x="814" y="37" width="9" height="13" rx="1"/>
+  <rect class="bar-empty" x="825" y="37" width="9" height="13" rx="1"/>
+  <rect class="bar-empty" x="836" y="37" width="9" height="13" rx="1"/>
+  <text class="gray" x="852" y="47">53%</text>
+
+  <!-- Pace -->
+  <text class="yellow" x="886" y="47">1.0x</text>
+</svg>
