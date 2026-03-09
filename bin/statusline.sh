@@ -35,7 +35,7 @@ process.stdin.on("end", () => {
       showLines:      env.STATUSLINE_SHOW_LINES !== "false",
       showRateLimits: env.STATUSLINE_SHOW_RATE_LIMITS !== "false",
       showPace:       env.STATUSLINE_SHOW_PACE !== "false",
-      contextIcon:    env.STATUSLINE_CONTEXT_ICON || "✍️",
+      contextIcon:    env.STATUSLINE_CONTEXT_ICON || "\u270D",
       cacheTtl:       parseInt(env.STATUSLINE_CACHE_TTL || "300", 10),
       barWidth:       parseInt(env.STATUSLINE_BAR_WIDTH || "10", 10),
     };
