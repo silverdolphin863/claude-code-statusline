@@ -35,7 +35,7 @@ process.stdin.on("end", () => {
       showLines:      env.STATUSLINE_SHOW_LINES !== "false",
       showRateLimits: env.STATUSLINE_SHOW_RATE_LIMITS !== "false",
       showPace:       env.STATUSLINE_SHOW_PACE !== "false",
-      contextIcon:    env.STATUSLINE_CONTEXT_ICON || "\u270D",
+      contextIcon:    env.STATUSLINE_CONTEXT_ICON || "\u2710",
       cacheTtl:       parseInt(env.STATUSLINE_CACHE_TTL || "300", 10),
       barWidth:       parseInt(env.STATUSLINE_BAR_WIDTH || "10", 10),
     };
@@ -165,31 +165,60 @@ process.stdin.on("end", () => {
           const fiveHourPct = Math.round(usageData.five_hour?.utilization ?? 0);
           const weeklyPct   = Math.round(usageData.seven_day?.utilization ?? 0);
 
-          barStr = sep + gray + "5-hour " + reset
+          // Helper: format reset as "Fri 12:00" in local timezone
+          function fmtReset(isoStr) {
+            if (!isoStr) return "";
+            const d = new Date(isoStr);
+            const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+            const hh = String(d.getHours()).padStart(2, "0");
+            const mm = String(d.getMinutes()).padStart(2, "0");
+            return days[d.getDay()] + " " + hh + ":" + mm;
+          }
+
+          // Helper: compute pace (usage rate vs elapsed time in window)
+          function calcPace(pctVal, resetIso, windowHours) {
+            if (!resetIso || pctVal <= 0) return null;
+            const resetMs = new Date(resetIso).getTime();
+            const nowMs = Date.now();
+            const windowMs = windowHours * 60 * 60 * 1000;
+            const remainMs = resetMs - nowMs;
+            const elapsedMs = windowMs - remainMs;
+            const elapsedPct = Math.max(1, Math.min(100, elapsedMs * 100 / windowMs));
+            return pctVal / elapsedPct;
+          }
+
+          // 5-hour: bar % speed resettime
+          const fiveHourReset = usageData.five_hour?.resets_at;
+          barStr = sep + gray + "5h " + reset
             + buildBar(fiveHourPct, cfg.barWidth) + " " + gray + fiveHourPct + "%" + reset;
-          barStr += sep + gray + "weekly " + reset
-            + buildBar(weeklyPct, cfg.barWidth) + " " + gray + weeklyPct + "%" + reset;
-
-          // Weekly pace indicator
-          if (cfg.showPace) {
-            const weeklyReset = usageData.seven_day?.resets_at;
-            if (weeklyReset && weeklyPct > 0) {
-              const resetMs = new Date(weeklyReset).getTime();
-              const nowMs = Date.now();
-              const windowMs = 7 * 24 * 60 * 60 * 1000;
-              const remainMs = resetMs - nowMs;
-              const elapsedMs = windowMs - remainMs;
-              const elapsedPct = Math.max(1, Math.min(100, elapsedMs * 100 / windowMs));
-              const pace = weeklyPct / elapsedPct;
-
-              let paceColor;
-              if (pace >= 1.5) paceColor = red;
-              else if (pace >= 1.1) paceColor = orange;
-              else if (pace >= 0.9) paceColor = yellow;
-              else paceColor = green;
-
-              barStr += " " + paceColor + pace.toFixed(1) + "x" + reset;
+          if (cfg.showPace && fiveHourReset && fiveHourPct > 0) {
+            const pace5 = calcPace(fiveHourPct, fiveHourReset, 5);
+            if (pace5 !== null) {
+              let pc; if (pace5 >= 1.5) pc = red; else if (pace5 >= 1.1) pc = orange; else if (pace5 >= 0.9) pc = yellow; else pc = green;
+              barStr += " " + pc + pace5.toFixed(1) + "x" + reset;
             }
+          }
+          if (fiveHourReset) {
+            // 5-hour: just time, no day needed
+            const d5 = new Date(fiveHourReset);
+            const hh5 = String(d5.getHours()).padStart(2, "0");
+            const mm5 = String(d5.getMinutes()).padStart(2, "0");
+            barStr += " " + dim + hh5 + ":" + mm5 + reset;
+          }
+
+          // weekly: bar % speed resettime
+          const weeklyReset = usageData.seven_day?.resets_at;
+          barStr += sep + gray + "7d " + reset
+            + buildBar(weeklyPct, cfg.barWidth) + " " + gray + weeklyPct + "%" + reset;
+          if (cfg.showPace && weeklyReset && weeklyPct > 0) {
+            const pace7 = calcPace(weeklyPct, weeklyReset, 7 * 24);
+            if (pace7 !== null) {
+              let pc; if (pace7 >= 1.5) pc = red; else if (pace7 >= 1.1) pc = orange; else if (pace7 >= 0.9) pc = yellow; else pc = green;
+              barStr += " " + pc + pace7.toFixed(1) + "x" + reset;
+            }
+          }
+          if (weeklyReset) {
+            barStr += " " + dim + fmtReset(weeklyReset) + reset;
           }
         }
       } catch(e) {
