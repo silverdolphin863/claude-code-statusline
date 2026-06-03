@@ -53,7 +53,20 @@ process.stdin.on("end", () => {
     const sep    = ` ${dim}\u2502${reset} `;
 
     // ── Model ──────────────────────────────────────────────────────
-    const model = d.model?.display_name || "Unknown";
+    let model = d.model?.display_name || "Unknown";
+    const effort = d.effort?.level;
+    let effortStr = "";
+    if (effort) {
+      const effortColors = {
+        low:    "\x1b[38;2;96;165;250m",   // blue
+        medium: "\x1b[38;2;52;211;153m",   // green
+        high:   "\x1b[38;2;251;191;36m",   // yellow
+        xhigh:  "\x1b[38;2;249;115;22m",   // orange
+        max:    "\x1b[38;2;239;68;68m",    // red
+      };
+      const ec = effortColors[effort] || "\x1b[38;2;107;114;128m";
+      effortStr = " " + ec + effort + "\x1b[0m";
+    }
 
     // ── Project ────────────────────────────────────────────────────
     const project = d.workspace?.project_dir
@@ -106,8 +119,13 @@ process.stdin.on("end", () => {
           usageData = JSON.parse(fs.readFileSync(cacheFile, "utf8"));
         } catch(e) {}
 
+        // Smart TTL: if cache is older than the 5-hour window (18000s),
+        // the data is definitely stale — force immediate refresh.
+        // Otherwise use normal TTL (300s default).
+        const effectiveTtl = cacheAge >= 18000 ? 0 : cfg.cacheTtl;
+
         // Only fetch if cache is expired AND no other fetch is in progress
-        if (cacheAge >= cfg.cacheTtl) {
+        if (cacheAge >= effectiveTtl) {
           const lockFile = cacheFile + ".lock";
           let shouldFetch = false;
           try {
@@ -115,10 +133,10 @@ process.stdin.on("end", () => {
             fs.writeFileSync(lockFile, String(Date.now()), { flag: "wx" });
             shouldFetch = true;
           } catch(e) {
-            // Lock exists — check if stale (>30s means previous fetch crashed)
+            // Lock exists — check if stale (>30s or cache very old means definitely stale)
             try {
               const lockAge = (Date.now() - fs.statSync(lockFile).mtimeMs) / 1000;
-              if (lockAge > 30) {
+              if (lockAge > 30 || cacheAge >= 18000) {
                 fs.unlinkSync(lockFile);
                 fs.writeFileSync(lockFile, String(Date.now()), { flag: "wx" });
                 shouldFetch = true;
@@ -165,14 +183,16 @@ process.stdin.on("end", () => {
           const fiveHourPct = Math.round(usageData.five_hour?.utilization ?? 0);
           const weeklyPct   = Math.round(usageData.seven_day?.utilization ?? 0);
 
-          // Helper: format reset as "Fri 12:00" in local timezone
+          // Helper: format reset as "Fri 20.03, 12:00" in local timezone
           function fmtReset(isoStr) {
             if (!isoStr) return "";
             const d = new Date(isoStr);
             const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+            const dd = String(d.getDate()).padStart(2, "0");
+            const mo = String(d.getMonth() + 1).padStart(2, "0");
             const hh = String(d.getHours()).padStart(2, "0");
             const mm = String(d.getMinutes()).padStart(2, "0");
-            return days[d.getDay()] + " " + hh + ":" + mm;
+            return days[d.getDay()] + " " + dd + "." + mo + ", " + hh + ":" + mm;
           }
 
           // Helper: compute pace (usage rate vs elapsed time in window)
@@ -226,17 +246,56 @@ process.stdin.on("end", () => {
       }
     }
 
+    // ── Unpromoted Learnings ───────────────────────────────────────
+    // Counts unchecked boxes in ~/.claude/incidents/*.md (excluding TEMPLATE)
+    // and in the current project .claude/implementation-notes.md "Promotion candidates"
+    // section. Hidden when count is 0. See ~/.claude/refs/learning-loop.md.
+    let learnStr = "";
+    try {
+      const home = process.env.HOME || process.env.USERPROFILE;
+      let count = 0;
+
+      try {
+        const incDir = path.join(home, ".claude", "incidents");
+        const files = fs.readdirSync(incDir).filter(f => f.endsWith(".md") && f !== "TEMPLATE.md");
+        for (const f of files) {
+          const content = fs.readFileSync(path.join(incDir, f), "utf8");
+          const matches = content.match(/^- \[ \]/gm);
+          if (matches) count += matches.length;
+        }
+      } catch(e) {}
+
+      try {
+        const projectDir = d.workspace?.project_dir;
+        if (projectDir) {
+          const notesFile = path.join(projectDir, ".claude", "implementation-notes.md");
+          const content = fs.readFileSync(notesFile, "utf8");
+          const sectIdx = content.indexOf("## Promotion candidates");
+          if (sectIdx !== -1) {
+            const section = content.slice(sectIdx);
+            const matches = section.match(/^- \[ \]/gm);
+            if (matches) count += matches.length;
+          }
+        }
+      } catch(e) {}
+
+      if (count > 0) {
+        learnStr = sep + yellow + "learn:" + count + reset;
+      }
+    } catch(e) {}
+
     // ── Assemble ───────────────────────────────────────────────────
-    let line = purple + model + reset + sep + blue + project + reset;
+    let line = purple + model + reset + effortStr + sep + blue + project + reset;
     line += sep + gray + dur + reset;
     if (cfg.showCost) {
       line += sep + yellow + cost + reset;
     }
-    line += sep + yellow + cfg.contextIcon + reset + " " + ctxColor + ctxStr + reset;
+    line += sep + ctxColor + cfg.contextIcon + " " + ctxStr + reset;
     if (cfg.showLines && (added > 0 || removed > 0)) {
       line += sep + green + "+" + added + reset + red + "/-" + removed + reset;
     }
     line += barStr;
+    line += learnStr;
 
     console.log(line);
   } catch(e) {
